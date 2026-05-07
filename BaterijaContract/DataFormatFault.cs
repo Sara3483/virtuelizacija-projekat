@@ -14,6 +14,6 @@ namespace BaterijaContract
         public string Message { get; set; }
 
         [DataMember]
-        public int rowIndex { get; set; }
+        public int RowIndex { get; set; }
     }
 }
