@@ -6,13 +6,16 @@ using System.ServiceModel.PeerResolvers;
 using System.Text;
 using System.Threading.Tasks;
 using BaterijaContract;
-using System.ServiceModel;  
+using System.ServiceModel;
+using System.IO;
 
 namespace VirtuelizacijaProjekat
 {
     public class EisService : IEisService
     {
         private int previousIndex = -1;
+
+        private EisFileWriter fileWriter;
         public BaterijaResponse StartSession(EisMeta meta)
         {
             if(meta == null)
@@ -26,6 +29,11 @@ namespace VirtuelizacijaProjekat
             }
 
             previousIndex = -1;
+
+            string folderPath = "EisOutput";
+            Directory.CreateDirectory(folderPath);
+            string filePath = Path.Combine(folderPath, meta.FileName);
+            fileWriter = new EisFileWriter(filePath);
 
             return new BaterijaResponse
             {
@@ -87,6 +95,18 @@ namespace VirtuelizacijaProjekat
                     });
             }
 
+            if(fileWriter == null)
+            {
+                throw new FaultException<ValidationFault>(
+                    new ValidationFault
+                    {
+                        Message = "Session has not been started.",
+                        Field = "Session"
+                    });
+            }
+
+            fileWriter.WriteSample(sample);
+
             previousIndex = sample.RowIndex;
 
             return new BaterijaResponse
@@ -99,6 +119,9 @@ namespace VirtuelizacijaProjekat
 
         public BaterijaResponse EndSession()
         {
+            fileWriter?.Dispose();
+            fileWriter = null;
+
             return new BaterijaResponse
             {
                 ACK = true,
