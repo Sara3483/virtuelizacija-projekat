@@ -26,28 +26,6 @@ namespace VirtuelizacijaProjekat
                 Console.WriteLine(e.Message);
                 host.Abort();
             }
-
-            string rootPath = @"C:\Users\Sara\Desktop\Baza\SoC Estimation on Li-ion Batteries A New EIS-based Dataset for data-driven applications";
-            EisFileReader reader = new EisFileReader(rootPath);
-            EisService service = new EisService();
-
-            List<FileInfo> files = reader.GetCsv();
-            Console.WriteLine("Found CSV files: " + files.Count);
-            foreach(FileInfo file in files)
-            {
-                Console.WriteLine("Processing file: " + file.Name);
-                List<EisSample> samples = reader.ReadSamples(file);
-                EisMeta meta = reader.CreateMeta(file, samples.Count);
-                service.StartSession(meta);
-                foreach(EisSample sample in samples)
-                {
-                    service.PushSample(sample);
-                }
-                service.EndSession();
-                Console.WriteLine("Finished: " + file.Name);
-            }
-            Console.WriteLine("Done.");
-            Console.Read();
         }
     }
 }

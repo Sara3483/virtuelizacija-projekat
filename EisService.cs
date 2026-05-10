@@ -13,9 +13,9 @@ namespace VirtuelizacijaProjekat
 {
     public class EisService : IEisService
     {
-        private int previousIndex = -1;
-
-        private EisFileWriter fileWriter;
+        private static int previousIndex = -1;
+        private static EisFileWriter fileWriter;
+        private static string rejectedPath;
         public BaterijaResponse StartSession(EisMeta meta)
         {
             if(meta == null)
@@ -30,10 +30,21 @@ namespace VirtuelizacijaProjekat
 
             previousIndex = -1;
 
-            string folderPath = "EisOutput";
+            string folderPath = Path.Combine("Data", meta.BatteryId,
+                meta.TestId, meta.SoCPercentage.ToString());
+
             Directory.CreateDirectory(folderPath);
-            string filePath = Path.Combine(folderPath, meta.FileName);
-            fileWriter = new EisFileWriter(filePath);
+            string sessionPath = Path.Combine(folderPath, "session.csv");
+
+            rejectedPath = Path.Combine(folderPath, "rejects.csv");
+            if (!File.Exists(rejectedPath))
+            {
+                File.WriteAllText(rejectedPath, "Time,Reason\n");
+            }
+
+            fileWriter?.Dispose();
+
+            fileWriter = new EisFileWriter(sessionPath);
 
             return new BaterijaResponse
             {
@@ -41,6 +52,17 @@ namespace VirtuelizacijaProjekat
                 Message = "Session started!",
                 Status = BaterijaStatus.IN_PROGRESS
             };
+        }
+
+        //funkcija za rejected uzorke
+        private void WriteReject(string reason)
+        {
+            Console.WriteLine("REJECT PATH: " + Path.GetFullPath(rejectedPath));
+            if (!string.IsNullOrEmpty(rejectedPath))
+            {
+                File.AppendAllText(rejectedPath,
+                    $"{DateTime.Now:yyyy-MM-dd HH:mm:ss},{reason}{Environment.NewLine}");
+            }
         }
 
         public BaterijaResponse PushSample(EisSample sample)
@@ -57,6 +79,7 @@ namespace VirtuelizacijaProjekat
 
             if(sample.RowIndex <= previousIndex)
             {
+                WriteReject("Row index must be greater than previous.");
                 throw new FaultException<ValidationFault>(
                     new ValidationFault
                     {
@@ -67,6 +90,7 @@ namespace VirtuelizacijaProjekat
 
             if(sample.FrequencyHz <= 0)
             {
+                WriteReject("Frequency must be greater than 0.");
                 throw new FaultException<ValidationFault>(
                     new ValidationFault
                     {
@@ -77,6 +101,7 @@ namespace VirtuelizacijaProjekat
 
             if(double.IsNaN(sample.R_ohm) || double.IsInfinity(sample.R_ohm))
             {
+                WriteReject("R_ohm value must be a real number");
                 throw new FaultException<ValidationFault>(
                     new ValidationFault
                     {
@@ -87,6 +112,7 @@ namespace VirtuelizacijaProjekat
 
             if(double.IsNaN(sample.T_degC) || double.IsInfinity(sample.T_degC))
             {
+                WriteReject("T_degC must be a real number.");
                 throw new FaultException<ValidationFault>(
                     new ValidationFault
                     {
@@ -97,6 +123,7 @@ namespace VirtuelizacijaProjekat
 
             if(fileWriter == null)
             {
+                WriteReject("Session has not started.");
                 throw new FaultException<ValidationFault>(
                     new ValidationFault
                     {
@@ -121,6 +148,7 @@ namespace VirtuelizacijaProjekat
         {
             fileWriter?.Dispose();
             fileWriter = null;
+            rejectedPath = null;
 
             return new BaterijaResponse
             {
