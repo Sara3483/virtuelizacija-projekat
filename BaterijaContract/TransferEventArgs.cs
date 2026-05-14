@@ -3,17 +3,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Runtime.Serialization;
 
 namespace Common
 {
-    [DataContract]
-    public class DataFormatFault
+    public class TransferEventArgs : EventArgs
     {
-        [DataMember]
         public string Message { get; set; }
-
-        [DataMember]
         public int RowIndex { get; set; }
+
+        public TransferEventArgs(string message, int rowIndex = -1)
+        {
+            Message = message;
+            RowIndex = rowIndex;
+        }
     }
 }

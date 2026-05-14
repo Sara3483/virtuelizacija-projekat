@@ -58,9 +58,9 @@
     <Content Include="docs\virtuelizacija-skica.jpg" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="BaterijaContract\BaterijaContract.csproj">
+    <ProjectReference Include="BaterijaContract\Common.csproj">
       <Project>{2430dc42-e1c0-41c4-93c7-6d87ca04a6ed}</Project>
-      <Name>BaterijaContract</Name>
+      <Name>Common</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

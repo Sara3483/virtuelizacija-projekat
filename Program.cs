@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.ServiceModel;
 using System.IO;
-using BaterijaContract;
+using Common;
 
 namespace VirtuelizacijaProjekat
 {
@@ -13,7 +13,29 @@ namespace VirtuelizacijaProjekat
     {
         static void Main(string[] args)
         {
-            ServiceHost host = new ServiceHost(typeof(EisService));
+            EisService service = new EisService();
+            service.OnTransferStarted += (sender, e) =>
+            {
+                Console.WriteLine(e.Message);
+            };
+
+            service.OnSampleReceived += (sender, e) =>
+            {
+                Console.WriteLine($"{e.Message}. RowIndex: {e.RowIndex}");
+            };
+
+            service.OnTransferCompleted += (sender, e) =>
+            {
+                Console.WriteLine(e.Message);
+            };
+
+            service.OnWarningRaised += (sender, e) =>
+            {
+                Console.WriteLine($"{e.Message}. RowIndex: {e.RowIndex}");
+            };
+
+            ServiceHost host = new ServiceHost(service);
+
             try
             {
                 host.Open();

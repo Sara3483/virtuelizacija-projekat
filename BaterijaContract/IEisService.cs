@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using System.ServiceModel;
 using System.Runtime.Serialization;
 
-namespace BaterijaContract
+namespace Common
 {
     [ServiceContract]
     public interface IEisService

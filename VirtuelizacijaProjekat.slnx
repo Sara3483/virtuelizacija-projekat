@@ -1,5 +1,5 @@
 <Solution>
-  <Project Path="BaterijaContract/BaterijaContract.csproj" Id="2430dc42-e1c0-41c4-93c7-6d87ca04a6ed" />
+  <Project Path="BaterijaContract/Common.csproj" Id="2430dc42-e1c0-41c4-93c7-6d87ca04a6ed" />
   <Project Path="Client/Client.csproj" Id="ef0d7d93-d477-49ca-b5ef-eeb60069c98d" />
   <Project Path="VirtuelizacijaProjekat.csproj" Id="8022383f-6173-40e7-938c-25ed5f609093" />
 </Solution>
