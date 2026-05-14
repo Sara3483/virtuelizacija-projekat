@@ -34,6 +34,12 @@ namespace VirtuelizacijaProjekat
                 Console.WriteLine($"{e.Message}. RowIndex: {e.RowIndex}");
             };
 
+            service.OnPhaseAngleShift += (sender, e) =>
+            {
+                Console.WriteLine($"{e.Message} | Phi: {e.Phi} | DeltaPhi: {e.DeltaPhi}" +
+                    $"| FrequencyHz: {e.FrequencyHz} | SoC: {e.SoC}");
+            };
+
             ServiceHost host = new ServiceHost(service);
 
             try

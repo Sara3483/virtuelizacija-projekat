@@ -9,6 +9,7 @@ using System.ServiceModel.Channels;
 using System.ServiceModel.PeerResolvers;
 using System.Text;
 using System.Threading.Tasks;
+using System.Configuration;
 
 namespace VirtuelizacijaProjekat
 {
@@ -24,8 +25,14 @@ namespace VirtuelizacijaProjekat
         public event EventHandler<TransferEventArgs> OnSampleReceived;
         public event EventHandler<TransferEventArgs> OnTransferCompleted;
         public event EventHandler<TransferEventArgs> OnWarningRaised;
+
+        public event EventHandler<TransferEventArgs> OnPhaseAngleShift;
+        private double? previousPhi = null;
+        private EisMeta currentMeta;
+
         public BaterijaResponse StartSession(EisMeta meta)
         {
+            previousPhi = null;
             Console.WriteLine("Data transferring in progress...");
 
             //okidanje eventa
@@ -40,6 +47,8 @@ namespace VirtuelizacijaProjekat
                         RowIndex = -1
                     });
             }
+
+            currentMeta = meta;
 
             previousIndex = -1;
 
@@ -141,7 +150,43 @@ namespace VirtuelizacijaProjekat
                     });
             }
 
-            if(fileWriter == null)
+            //analitika 1
+            double phi = Math.Atan2(sample.X_ohm, sample.R_ohm);
+
+            if (previousPhi.HasValue)
+            {
+                double deltaPhi = phi - previousPhi.Value;
+
+                double phiThreshold = double.Parse(
+                    ConfigurationManager.AppSettings["PhiThreshold"],
+                    System.Globalization.CultureInfo.InvariantCulture);
+
+                if (Math.Abs(deltaPhi) > phiThreshold)
+                {
+                    string direction;
+
+                    if (deltaPhi > 0)
+                    {
+                        direction = "Shift toward inductive behavior";
+                    }
+                    else
+                    {
+                        direction = "Shift toward capacitive behavior";
+                    }
+
+                    RaisePhaseAngleShift(
+                        $"Phase angle shift detected: {direction}",
+                        phi,
+                        deltaPhi,
+                        sample.FrequencyHz,
+                        currentMeta.SoCPercentage,
+                        direction);
+                }
+            }
+
+            previousPhi = phi;
+
+            if (fileWriter == null)
             {
                 WriteReject("Session has not started.");
                 RaiseWarning("Warning: invalid sample", sample.RowIndex);
@@ -204,6 +249,12 @@ namespace VirtuelizacijaProjekat
         private void RaiseWarning(string message, int rowIndex = -1)
         {
             OnWarningRaised?.Invoke(this, new TransferEventArgs(message, rowIndex));
+        }
+
+        private void RaisePhaseAngleShift(string message, double phi, double deltaPhi, double frequency, double soc, string direction)
+        {
+            OnPhaseAngleShift?.Invoke(this, new TransferEventArgs(message)
+            { Phi = phi, DeltaPhi = deltaPhi, FrequencyHz = frequency, SoC = soc, ShiftDirection = direction });
         }
     }
 }

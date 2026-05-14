@@ -75,3 +75,29 @@ Implementiran Dispose pattern sa FileStream, StreamWriter, StreamReader i IDispo
 - u Test_1 se nalazi .csv fajl sa nepotpunim podacima 
 - u Test_2 se nalazi .csv fajl sa brojem redova vecim od 39
 - greske se loguju u invalid_rows.log
+
+## Snimanje i organizacija fajlova
+Prilikom poziva StartSession kreiraju se direktorijumi sessions.csv i rejects.csv
+sessions.csv: cuva sva validna merenja u toku prenosa
+rejects.csv: cuva odbacene uzorke putem formata koji je zahtevan u specifikaciji
+
+## Sekvencijalni streaming
+Klijent:
+- salje jedno po jedno merenje serveru redom iz ucitanih .csv fajlova
+- koristi PushSample metodu
+
+Server:
+- obradjuje svaki sample pojedinacno
+- ispisuje status prenosa
+- vraca IN_PROGRESS ili COMPLETED 
+
+## Delegati i dogadjaji
+Implementiran publish-subscribe mehanizam
+
+Dogadjaji:
+- OnTransferStarted
+- OnSampleReceived
+- OnTransferCompleted
+- OnWarningRaised
+
+Warning dogadjaji se generisu prilikom prethodno definisanih gresaka
