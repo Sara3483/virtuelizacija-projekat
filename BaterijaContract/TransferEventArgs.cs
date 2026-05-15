@@ -18,6 +18,11 @@ namespace Common
         public double SoC { get; set; }
         public string ShiftDirection { get; set; }
 
+        //podaci za tacku 10
+        public double Q { get; set; }
+        public double QMean { get; set; }
+        public string BatteryId { get; set; }
+
         public TransferEventArgs(string message, int rowIndex = -1)
         {
             Message = message;

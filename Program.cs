@@ -40,6 +40,18 @@ namespace VirtuelizacijaProjekat
                     $"| FrequencyHz: {e.FrequencyHz} | SoC: {e.SoC}");
             };
 
+            service.OnRatioOutOfBounds += (sender, e) =>
+            {
+                Console.WriteLine($"{e.Message}. RowIndex: {e.RowIndex} | BatteryId: {e.BatteryId} | SoC: {e.SoC} " +
+                    $"| FrequencyHz: {e.FrequencyHz} | Q: {e.Q} | QMean: {e.QMean}");
+            };
+
+            service.OnRatioWarning += (sender, e) =>
+            {
+                Console.WriteLine($"{e.Message}. ({e.ShiftDirection}). RowIndex: {e.RowIndex} | BatteryId: {e.BatteryId} | SoC: {e.SoC} " +
+                    $"| FrequencyHz: {e.FrequencyHz} | Q: {e.Q} | QMean: {e.QMean}");
+            };
+
             ServiceHost host = new ServiceHost(service);
 
             try

@@ -30,10 +30,18 @@ namespace VirtuelizacijaProjekat
         private double? previousPhi = null;
         private EisMeta currentMeta;
 
+        public event EventHandler<TransferEventArgs> OnRatioOutOfBounds;
+        public event EventHandler<TransferEventArgs> OnRatioWarning;
+        private double qSum = 0;
+        private int qCount = 0;
+
         public BaterijaResponse StartSession(EisMeta meta)
         {
             previousPhi = null;
             Console.WriteLine("Data transferring in progress...");
+
+            qSum = 0;
+            qCount = 0;
 
             //okidanje eventa
             RaiseTransferStarted("Transfer started.");
@@ -73,9 +81,7 @@ namespace VirtuelizacijaProjekat
                 ACK = true,
                 Message = "Session started!",
                 Status = BaterijaStatus.IN_PROGRESS
-            };
-
-            
+            };  
         }
 
         //funkcija za rejected uzorke
@@ -186,6 +192,35 @@ namespace VirtuelizacijaProjekat
 
             previousPhi = phi;
 
+            //analitika 2
+            double q = Math.Abs(sample.X_ohm) / sample.R_ohm;
+            double qMin = double.Parse(ConfigurationManager.AppSettings["QMin"],
+                System.Globalization.CultureInfo.InvariantCulture);
+            double qMax = double.Parse(ConfigurationManager.AppSettings["QMax"],
+                System.Globalization.CultureInfo.InvariantCulture);
+            double qDev = double.Parse(ConfigurationManager.AppSettings["QDev"],
+                System.Globalization.CultureInfo.InvariantCulture);
+            qSum += q;
+            qCount++;
+            double qMean = qSum / qCount;
+            if(q < qMin || q > qMax)
+            {
+                WriteReject($"Reactive ratio out of bounds {q}");
+                RaiseRatioOutOfBounds("Reactive ratio out of bounds.",
+                    sample.RowIndex, q, qMean, sample.FrequencyHz);
+            }
+
+            if(q < (1 - qDev) * qMean)
+            {
+                RaiseRatioWarning("Reactive ratio below expected.",
+                    sample.RowIndex, q, qMean, sample.FrequencyHz, "below expected");
+            }
+            else if(q > (1 - qDev) * qMean)
+            {
+                RaiseRatioWarning("Reactive ratio above expected.",
+                    sample.RowIndex, q, qMean, sample.FrequencyHz, "above expected");
+            }
+
             if (fileWriter == null)
             {
                 WriteReject("Session has not started.");
@@ -255,6 +290,18 @@ namespace VirtuelizacijaProjekat
         {
             OnPhaseAngleShift?.Invoke(this, new TransferEventArgs(message)
             { Phi = phi, DeltaPhi = deltaPhi, FrequencyHz = frequency, SoC = soc, ShiftDirection = direction });
+        }
+
+        private void RaiseRatioOutOfBounds(string message, int rowIndex, double q, double qMean, double frequency)
+        {
+            OnRatioOutOfBounds?.Invoke(this, new TransferEventArgs(message, rowIndex)
+            { Q = q, QMean = qMean, FrequencyHz = frequency, SoC = currentMeta.SoCPercentage, BatteryId = currentMeta.BatteryId });
+        }
+
+        private void RaiseRatioWarning(string message, int rowIndex, double q, double qMean, double frequency, string direction)
+        {
+            OnRatioWarning?.Invoke(this, new TransferEventArgs(message, rowIndex)
+            { Q = q, QMean = qMean, FrequencyHz = frequency, SoC = currentMeta.SoCPercentage, BatteryId = currentMeta.BatteryId, ShiftDirection = direction });
         }
     }
 }
