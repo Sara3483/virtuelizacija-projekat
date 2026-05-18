@@ -13,6 +13,7 @@ namespace Common
     {
         [OperationContract]
         [FaultContract(typeof(ValidationFault))]
+        [FaultContract(typeof(DataFormatFault))]
         BaterijaResponse StartSession(EisMeta meta);
 
         [OperationContract]

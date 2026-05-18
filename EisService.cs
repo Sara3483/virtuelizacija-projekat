@@ -99,7 +99,7 @@ namespace VirtuelizacijaProjekat
         {
             if(sample == null)
             {
-                RaiseWarning("Warning: invalid sample", sample.RowIndex);
+                RaiseWarning("Warning: invalid sample", -1);
                 throw new FaultException<DataFormatFault>(
                     new DataFormatFault
                     {
@@ -193,6 +193,15 @@ namespace VirtuelizacijaProjekat
             previousPhi = phi;
 
             //analitika 2
+            if(sample.R_ohm == 0)
+            {
+                throw new FaultException<ValidationFault>(
+                    new ValidationFault
+                    {
+                        Message = "R_ohm value is zero.",
+                        Field = "R_ohm"
+                    });
+            }
             double q = Math.Abs(sample.X_ohm) / sample.R_ohm;
             double qMin = double.Parse(ConfigurationManager.AppSettings["QMin"],
                 System.Globalization.CultureInfo.InvariantCulture);
@@ -215,7 +224,7 @@ namespace VirtuelizacijaProjekat
                 RaiseRatioWarning("Reactive ratio below expected.",
                     sample.RowIndex, q, qMean, sample.FrequencyHz, "below expected");
             }
-            else if(q > (1 - qDev) * qMean)
+            else if(q > (1 + qDev) * qMean)
             {
                 RaiseRatioWarning("Reactive ratio above expected.",
                     sample.RowIndex, q, qMean, sample.FrequencyHz, "above expected");
