@@ -1,11 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.ServiceModel;
-using System.IO;
-using Common;
+using VirtuelizacijaProjekat.Events;
+using VirtuelizacijaProjekat.Subscribers;
+using VirtuelizacijaProjekat.Analytics;
 
 namespace VirtuelizacijaProjekat
 {
@@ -13,44 +10,38 @@ namespace VirtuelizacijaProjekat
     {
         static void Main(string[] args)
         {
-            EisService service = new EisService();
-            service.OnTransferStarted += (sender, e) =>
-            {
-                Console.WriteLine(e.Message);
-            };
+            TransferEventPublisher transferEvent = new TransferEventPublisher();
 
-            service.OnSampleReceived += (sender, e) =>
-            {
-                Console.WriteLine($"{e.Message}. RowIndex: {e.RowIndex}");
-            };
+            ConsoleTransferSubscriber consoleSubscriber = new ConsoleTransferSubscriber();
+            FileTransferSubscriber fileSubscriber = new FileTransferSubscriber("transfer_events.log");
 
-            service.OnTransferCompleted += (sender, e) =>
-            {
-                Console.WriteLine(e.Message);
-            };
+            transferEvent.OnTransferStarted += consoleSubscriber.TransferStartedHandler;
+            transferEvent.OnSampleReceived += consoleSubscriber.SampleReceivedHandler;
+            transferEvent.OnTransferCompleted += consoleSubscriber.TransferCompletedHandler;
+            transferEvent.OnWarningRaised += consoleSubscriber.WarningRaisedHandler;
 
-            service.OnWarningRaised += (sender, e) =>
-            {
-                Console.WriteLine($"{e.Message}. RowIndex: {e.RowIndex}");
-            };
+            transferEvent.OnTransferStarted += fileSubscriber.TransferStartedHandler;
+            transferEvent.OnSampleReceived += fileSubscriber.SampleReceivedHandler;
+            transferEvent.OnTransferCompleted += fileSubscriber.TransferCompletedHandler;
+            transferEvent.OnWarningRaised += fileSubscriber.WarningRaisedHandler;
 
-            service.OnPhaseAngleShift += (sender, e) =>
-            {
-                Console.WriteLine($"{e.Message} | Phi: {e.Phi} | DeltaPhi: {e.DeltaPhi}" +
-                    $"| FrequencyHz: {e.FrequencyHz} | SoC: {e.SoC}");
-            };
+            PhaseAngleEventPublisher phaseAngleEvent = new PhaseAngleEventPublisher();
+            ConsolePhaseAngleSubscriber consolePhaseSubscriber = new ConsolePhaseAngleSubscriber();
+            FilePhaseAngleSubscriber filePhaseSubscriber = new FilePhaseAngleSubscriber("phase_angle.log");
+            phaseAngleEvent.OnPhaseAngleShift += consolePhaseSubscriber.PhaseAngleShiftHandler;
+            phaseAngleEvent.OnPhaseAngleShift += filePhaseSubscriber.PhaseAngleShiftHandler;
+            PhaseAngleProcessor phaseAngleProcessor = new PhaseAngleProcessor(phaseAngleEvent);
 
-            service.OnRatioOutOfBounds += (sender, e) =>
-            {
-                Console.WriteLine($"{e.Message}. RowIndex: {e.RowIndex} | BatteryId: {e.BatteryId} | SoC: {e.SoC} " +
-                    $"| FrequencyHz: {e.FrequencyHz} | Q: {e.Q} | QMean: {e.QMean}");
-            };
+            ReactiveRatioEventPublisher reactiveRatioEvent = new ReactiveRatioEventPublisher();
+            ConsoleReactiveRatioSubscriber consoleReactiveRatioSubscriber = new ConsoleReactiveRatioSubscriber();
+            FileReactiveRatioSubscriber fileReactiveRatioSubscriber = new FileReactiveRatioSubscriber("reactive_ratio.log");
+            reactiveRatioEvent.OnReactiveRatioOutOfBounds += consoleReactiveRatioSubscriber.ReactiveRatioOutOfBoundsHandler;
+            reactiveRatioEvent.OnReactiveRatioWarning += consoleReactiveRatioSubscriber.ReactiveRatioWarningHandler;
+            reactiveRatioEvent.OnReactiveRatioOutOfBounds += fileReactiveRatioSubscriber.ReactiveRatioOutOfBoundsHandler;
+            reactiveRatioEvent.OnReactiveRatioWarning += fileReactiveRatioSubscriber.ReactiveRatioWarningHandler;
+            ReactiveRatioProcessor reactiveRatioProcessor = new ReactiveRatioProcessor(reactiveRatioEvent);
 
-            service.OnRatioWarning += (sender, e) =>
-            {
-                Console.WriteLine($"{e.Message}. ({e.ShiftDirection}). RowIndex: {e.RowIndex} | BatteryId: {e.BatteryId} | SoC: {e.SoC} " +
-                    $"| FrequencyHz: {e.FrequencyHz} | Q: {e.Q} | QMean: {e.QMean}");
-            };
+            EisService service = new EisService(transferEvent, phaseAngleProcessor, reactiveRatioProcessor);
 
             ServiceHost host = new ServiceHost(service);
 

@@ -1,15 +1,10 @@
 ﻿using Common;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Runtime.Remoting.Messaging;
 using System.ServiceModel;
-using System.ServiceModel.Channels;
-using System.ServiceModel.PeerResolvers;
-using System.Text;
-using System.Threading.Tasks;
 using System.Configuration;
+using VirtuelizacijaProjekat.Events;
+using VirtuelizacijaProjekat.Analytics;
 
 namespace VirtuelizacijaProjekat
 {
@@ -21,31 +16,21 @@ namespace VirtuelizacijaProjekat
         private static EisFileWriter fileWriter;
         private static string rejectedPath;
 
-        public event EventHandler<TransferEventArgs> OnTransferStarted;
-        public event EventHandler<TransferEventArgs> OnSampleReceived;
-        public event EventHandler<TransferEventArgs> OnTransferCompleted;
-        public event EventHandler<TransferEventArgs> OnWarningRaised;
+        private readonly TransferEventPublisher transferEventPublisher;
+        private readonly PhaseAngleProcessor phaseAngleProcessor;
+        private readonly ReactiveRatioProcessor reactiveRatioProcessor;
 
-        public event EventHandler<TransferEventArgs> OnPhaseAngleShift;
-        private double? previousPhi = null;
+        public EisService(TransferEventPublisher transfer, PhaseAngleProcessor phase, ReactiveRatioProcessor reactive)
+        {
+            this.transferEventPublisher = transfer;
+            this.phaseAngleProcessor = phase;
+            this.reactiveRatioProcessor = reactive;
+        }
+
         private EisMeta currentMeta;
-
-        public event EventHandler<TransferEventArgs> OnRatioOutOfBounds;
-        public event EventHandler<TransferEventArgs> OnRatioWarning;
-        private double qSum = 0;
-        private int qCount = 0;
 
         public BaterijaResponse StartSession(EisMeta meta)
         {
-            previousPhi = null;
-            Console.WriteLine("Data transferring in progress...");
-
-            qSum = 0;
-            qCount = 0;
-
-            //okidanje eventa
-            RaiseTransferStarted("Transfer started.");
-
             if (meta == null)
             {
                 throw new FaultException<DataFormatFault>(
@@ -55,6 +40,13 @@ namespace VirtuelizacijaProjekat
                         RowIndex = -1
                     });
             }
+
+            phaseAngleProcessor.Reset();
+            reactiveRatioProcessor.Reset();
+
+            //okidanje eventa
+            string transferStartedMessage = ConfigurationManager.AppSettings["TransferStartedMessage"];
+            transferEventPublisher.RaiseTransferStarted(transferStartedMessage);
 
             currentMeta = meta;
 
@@ -87,7 +79,6 @@ namespace VirtuelizacijaProjekat
         //funkcija za rejected uzorke
         private void WriteReject(string reason)
         {
-            Console.WriteLine("REJECT PATH: " + Path.GetFullPath(rejectedPath));
             if (!string.IsNullOrEmpty(rejectedPath))
             {
                 File.AppendAllText(rejectedPath,
@@ -97,9 +88,11 @@ namespace VirtuelizacijaProjekat
 
         public BaterijaResponse PushSample(EisSample sample)
         {
+            string warningMessage = ConfigurationManager.AppSettings["WarningMessage"];
+            
             if(sample == null)
             {
-                RaiseWarning("Warning: invalid sample", -1);
+                transferEventPublisher.RaiseWarning(warningMessage, -1);
                 throw new FaultException<DataFormatFault>(
                     new DataFormatFault
                     {
@@ -111,7 +104,7 @@ namespace VirtuelizacijaProjekat
             if(sample.RowIndex <= previousIndex)
             {
                 WriteReject("Row index must be greater than previous.");
-                RaiseWarning("Warning: invalid sample", sample.RowIndex);
+                transferEventPublisher.RaiseWarning(warningMessage, sample.RowIndex);
                 throw new FaultException<ValidationFault>(
                     new ValidationFault
                     {
@@ -123,7 +116,7 @@ namespace VirtuelizacijaProjekat
             if(sample.FrequencyHz <= 0)
             {
                 WriteReject("Frequency must be greater than 0.");
-                RaiseWarning("Warning: invalid sample", sample.RowIndex);
+                transferEventPublisher.RaiseWarning(warningMessage, sample.RowIndex);
                 throw new FaultException<ValidationFault>(
                     new ValidationFault
                     {
@@ -135,7 +128,7 @@ namespace VirtuelizacijaProjekat
             if(double.IsNaN(sample.R_ohm) || double.IsInfinity(sample.R_ohm))
             {
                 WriteReject("R_ohm value must be a real number");
-                RaiseWarning("Warning: invalid sample", sample.RowIndex);
+                transferEventPublisher.RaiseWarning(warningMessage, sample.RowIndex);
                 throw new FaultException<ValidationFault>(
                     new ValidationFault
                     {
@@ -147,7 +140,7 @@ namespace VirtuelizacijaProjekat
             if(double.IsNaN(sample.T_degC) || double.IsInfinity(sample.T_degC))
             {
                 WriteReject("T_degC must be a real number.");
-                RaiseWarning("Warning: invalid sample", sample.RowIndex);
+                transferEventPublisher.RaiseWarning(warningMessage, sample.RowIndex);
                 throw new FaultException<ValidationFault>(
                     new ValidationFault
                     {
@@ -156,84 +149,10 @@ namespace VirtuelizacijaProjekat
                     });
             }
 
-            //analitika 1
-            double phi = Math.Atan2(sample.X_ohm, sample.R_ohm);
-
-            if (previousPhi.HasValue)
-            {
-                double deltaPhi = phi - previousPhi.Value;
-
-                double phiThreshold = double.Parse(
-                    ConfigurationManager.AppSettings["PhiThreshold"],
-                    System.Globalization.CultureInfo.InvariantCulture);
-
-                if (Math.Abs(deltaPhi) > phiThreshold)
-                {
-                    string direction;
-
-                    if (deltaPhi > 0)
-                    {
-                        direction = "Shift toward inductive behavior";
-                    }
-                    else
-                    {
-                        direction = "Shift toward capacitive behavior";
-                    }
-
-                    RaisePhaseAngleShift(
-                        $"Phase angle shift detected: {direction}",
-                        phi,
-                        deltaPhi,
-                        sample.FrequencyHz,
-                        currentMeta.SoCPercentage,
-                        direction);
-                }
-            }
-
-            previousPhi = phi;
-
-            //analitika 2
-            if(sample.R_ohm == 0)
-            {
-                throw new FaultException<ValidationFault>(
-                    new ValidationFault
-                    {
-                        Message = "R_ohm value is zero.",
-                        Field = "R_ohm"
-                    });
-            }
-            double q = Math.Abs(sample.X_ohm) / sample.R_ohm;
-            double qMin = double.Parse(ConfigurationManager.AppSettings["QMin"],
-                System.Globalization.CultureInfo.InvariantCulture);
-            double qMax = double.Parse(ConfigurationManager.AppSettings["QMax"],
-                System.Globalization.CultureInfo.InvariantCulture);
-            double qDev = double.Parse(ConfigurationManager.AppSettings["QDev"],
-                System.Globalization.CultureInfo.InvariantCulture);
-            qSum += q;
-            qCount++;
-            double qMean = qSum / qCount;
-            if(q < qMin || q > qMax)
-            {
-                WriteReject($"Reactive ratio out of bounds {q}");
-                RaiseRatioOutOfBounds("Reactive ratio out of bounds.",
-                    sample.RowIndex, q, qMean, sample.FrequencyHz);
-            }
-
-            if(q < (1 - qDev) * qMean)
-            {
-                RaiseRatioWarning("Reactive ratio below expected.",
-                    sample.RowIndex, q, qMean, sample.FrequencyHz, "below expected");
-            }
-            else if(q > (1 + qDev) * qMean)
-            {
-                RaiseRatioWarning("Reactive ratio above expected.",
-                    sample.RowIndex, q, qMean, sample.FrequencyHz, "above expected");
-            }
-
             if (fileWriter == null)
             {
                 WriteReject("Session has not started.");
-                RaiseWarning("Warning: invalid sample", sample.RowIndex);
+                transferEventPublisher.RaiseWarning(warningMessage, sample.RowIndex);
                 throw new FaultException<ValidationFault>(
                     new ValidationFault
                     {
@@ -242,10 +161,29 @@ namespace VirtuelizacijaProjekat
                     });
             }
 
+            phaseAngleProcessor.ProcessSample(sample, currentMeta);
+
+            try
+            {
+                reactiveRatioProcessor.ProcessSample(sample, currentMeta, WriteReject);
+            }
+            catch(InvalidOperationException)
+            {
+                WriteReject("R_ohm value is zero!");
+                transferEventPublisher.RaiseWarning(warningMessage, sample.RowIndex);
+
+                throw new FaultException<ValidationFault>(
+                    new ValidationFault
+                    {
+                        Message = "R_ohm value is zero!",
+                        Field = "R_ohm"
+                    });
+            }
+
             fileWriter.WriteSample(sample);
 
-            Console.WriteLine($"Data transfer in progress...");
-            RaiseSampleReceived("Sample received", sample.RowIndex);
+            string sampleReceivedMessage = ConfigurationManager.AppSettings["SampleReceivedMessage"];
+            transferEventPublisher.RaiseSampleReceived(sampleReceivedMessage, sample.RowIndex);
 
             previousIndex = sample.RowIndex;
 
@@ -263,8 +201,8 @@ namespace VirtuelizacijaProjekat
             fileWriter = null;
             rejectedPath = null;
 
-            Console.WriteLine("Transfer completed.");
-            RaiseTransferCompleted("Transfer successfully completed.");
+            string transferCompletedMessage = ConfigurationManager.AppSettings["TransferCompletedMessage"];
+            transferEventPublisher.RaiseTransferCompleted(transferCompletedMessage);
 
             return new BaterijaResponse
             {
@@ -272,45 +210,6 @@ namespace VirtuelizacijaProjekat
                 Message = "Session completed!",
                 Status = BaterijaStatus.COMPLETED
             };
-        }
-
-        //metode za okidanje dogadjaja
-        private void RaiseTransferStarted(string message)
-        {
-            OnTransferStarted?.Invoke(this, new TransferEventArgs(message));
-        }
-
-        private void RaiseSampleReceived(string message, int rowIndex)
-        {
-            OnSampleReceived?.Invoke(this, new TransferEventArgs(message, rowIndex));
-        }
-
-        private void RaiseTransferCompleted(string message)
-        {
-            OnTransferCompleted?.Invoke(this, new TransferEventArgs(message));
-        }
-
-        private void RaiseWarning(string message, int rowIndex = -1)
-        {
-            OnWarningRaised?.Invoke(this, new TransferEventArgs(message, rowIndex));
-        }
-
-        private void RaisePhaseAngleShift(string message, double phi, double deltaPhi, double frequency, double soc, string direction)
-        {
-            OnPhaseAngleShift?.Invoke(this, new TransferEventArgs(message)
-            { Phi = phi, DeltaPhi = deltaPhi, FrequencyHz = frequency, SoC = soc, ShiftDirection = direction });
-        }
-
-        private void RaiseRatioOutOfBounds(string message, int rowIndex, double q, double qMean, double frequency)
-        {
-            OnRatioOutOfBounds?.Invoke(this, new TransferEventArgs(message, rowIndex)
-            { Q = q, QMean = qMean, FrequencyHz = frequency, SoC = currentMeta.SoCPercentage, BatteryId = currentMeta.BatteryId });
-        }
-
-        private void RaiseRatioWarning(string message, int rowIndex, double q, double qMean, double frequency, string direction)
-        {
-            OnRatioWarning?.Invoke(this, new TransferEventArgs(message, rowIndex)
-            { Q = q, QMean = qMean, FrequencyHz = frequency, SoC = currentMeta.SoCPercentage, BatteryId = currentMeta.BatteryId, ShiftDirection = direction });
         }
     }
 }
