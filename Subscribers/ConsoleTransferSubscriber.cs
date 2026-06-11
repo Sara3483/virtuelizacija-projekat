@@ -7,23 +7,31 @@ namespace VirtuelizacijaProjekat.Subscribers
     {
         public void TransferStartedHandler(object sender, CustomEventArgs e)
         {
-            Console.WriteLine("[START] " + e.Message);
+            Console.WriteLine();
+            Console.WriteLine("========================================");
+            Console.WriteLine(e.Message);
+            Console.WriteLine("========================================");
         }
 
         public void SampleReceivedHandler(object sender, CustomEventArgs e)
         {
-            Console.WriteLine("[SAMPLE] " + e.Message + "RowIndex: " + e.RowIndex);
+            Console.WriteLine("[SAMPLE] RowIndex: " + e.RowIndex);
         }
 
         public void TransferCompletedHandler(object sender, CustomEventArgs e)
         {
-            Console.WriteLine("[COMPLETED] " + e.Message);
+            Console.WriteLine("========================================");
+            Console.WriteLine(e.Message);
+            Console.WriteLine("========================================");
+            Console.WriteLine();
         }
 
         public void WarningRaisedHandler(object sender, CustomEventArgs e)
         {
-            Console.WriteLine("[WARNING] " + e.Message + "RowIndex: " + e.RowIndex);
+            Console.WriteLine();
+            Console.WriteLine(e.Message);
+            Console.WriteLine("RowIndex: " + e.RowIndex);
+            Console.WriteLine("----------------------------------------");
         }
-
     }
 }

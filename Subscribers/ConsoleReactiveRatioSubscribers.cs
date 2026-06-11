@@ -7,26 +7,24 @@ namespace VirtuelizacijaProjekat.Subscribers
     {
         public void ReactiveRatioOutOfBoundsHandler(object sender, ReactiveRatioEventArgs e)
         {
-            Console.WriteLine("[REACTIVE RATIO OUT OF BOUNDS] " + e.Message +
-                " | Direction: " + e.Direction +
-                " | RowIndex: " + e.RowIndex +
-                " | BatteryId: " + e.BatteryId +
-                " | SoC: " + e.SoC +
-                " | FrequencyHz: " + e.FrequencyHz +
-                " | Q: " + e.Q +
-                " | QMean: " + e.QMean);
+            Console.WriteLine();
+            Console.WriteLine("!!! REACTIVE RATIO OUT OF BOUNDS !!!");
+            Console.WriteLine("RowIndex: " + e.RowIndex);
+            Console.WriteLine("Q: " + e.Q);
+            Console.WriteLine("QMean: " + e.QMean);
+            Console.WriteLine("Direction: " + e.Direction);
+            Console.WriteLine("-------------------------------------");
         }
 
         public void ReactiveRatioWarningHandler(object sender, ReactiveRatioEventArgs e)
         {
-            Console.WriteLine("[REACTIVE RATIO WARNING] " + e.Message +
-                " | Direction: " + e.Direction +
-                " | RowIndex: " + e.RowIndex +
-                " | BatteryId: " + e.BatteryId +
-                " | SoC: " + e.SoC +
-                " | FrequencyHz: " + e.FrequencyHz +
-                " | Q: " + e.Q +
-                " | QMean: " + e.QMean);
+            Console.WriteLine();
+            Console.WriteLine("!!! REACTIVE RATIO WARNING !!!");
+            Console.WriteLine("RowIndex: " + e.RowIndex);
+            Console.WriteLine("Q: " + e.Q);
+            Console.WriteLine("QMean: " + e.QMean);
+            Console.WriteLine("Direction: " + e.Direction);
+            Console.WriteLine("--------------------------------");
         }
     }
 }

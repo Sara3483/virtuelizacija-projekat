@@ -7,14 +7,14 @@ namespace VirtuelizacijaProjekat.Subscribers
     {
         public void PhaseAngleShiftHandler(object sender, PhaseAngleEventArgs e)
         {
-            Console.Write("[PHASE ANGLE SHIFT] " + e.Message +
-                        "| Direction: " + e.ShiftDirection +
-                        "| RowIndex: " + e.RowIndex +
-                        "| BatteryId: " + e.BatteryId +
-                        "| SoC: " + e.SoC +
-                        "| FrequencyHz: " + e.FrequencyHz +
-                        "| Phi: " + e.Phi +
-                        "| DeltaPhi: " + e.DeltaPhi);
+            Console.WriteLine();
+            Console.WriteLine("----- PHASE ANGLE SHIFT -----");
+            Console.WriteLine("Phi: " + e.Phi);
+            Console.WriteLine("DeltaPhi: " + e.DeltaPhi);
+            Console.WriteLine("FrequencyHz: " + e.FrequencyHz);
+            Console.WriteLine("SoC: " + e.SoC);
+            Console.WriteLine("Direction: " + e.ShiftDirection);
+            Console.WriteLine("-----------------------------");
         }
     }
 }

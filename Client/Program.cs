@@ -7,6 +7,7 @@ using System.ServiceModel;
 using System.Text;
 using System.Threading.Tasks;
 using VirtuelizacijaProjekat;
+using System.Threading;
 
 namespace Client
 {
@@ -35,7 +36,8 @@ namespace Client
                     {
                         try
                         { 
-                        service.PushSample(sample);
+                            service.PushSample(sample);
+                            Thread.Sleep(500);
                         }
                         catch(FaultException<ValidationFault> e)
                         {
