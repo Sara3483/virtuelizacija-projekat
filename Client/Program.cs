@@ -37,7 +37,7 @@ namespace Client
                         try
                         { 
                             service.PushSample(sample);
-                            //Thread.Sleep(500);
+                            Thread.Sleep(300);
                         }
                         catch(FaultException<ValidationFault> e)
                         {
