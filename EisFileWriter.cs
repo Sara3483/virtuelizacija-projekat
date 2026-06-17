@@ -19,20 +19,19 @@ namespace VirtuelizacijaProjekat
             fileStream = new FileStream(fPath, FileMode.Create, FileAccess.Write);
             writer = new StreamWriter(fileStream);
 
-            writer.WriteLine("RowIndex,FrequencyHz,R_ohm,T_degC,Range_ohm,TimestampLocal");
+            writer.WriteLine("RowIndex,FrequencyHz,R_ohm,X_ohm,T_degC,Range_ohm,TimestampLocal");
         }
 
         public void WriteSample(EisSample sample)
         {
-            if(disposed)
+            if (disposed)
             {
                 throw new ObjectDisposedException(nameof(EisFileWriter));
             }
 
-            writer.WriteLine($"{sample.RowIndex}, {sample.FrequencyHz}, {sample.R_ohm}," +
-                $"{sample.T_degC}, {sample.Range_ohm}, {sample.TimestampLocal}");
+            writer.WriteLine($"{sample.RowIndex},{sample.FrequencyHz},{sample.R_ohm},{sample.X_ohm},{sample.T_degC},{sample.Range_ohm},{sample.TimestampLocal}");
 
-            writer.Flush(); //za oporavak u slucaju prekida - odmah upisuje na disk info
+            writer.Flush();
         }
 
         public void Dispose()

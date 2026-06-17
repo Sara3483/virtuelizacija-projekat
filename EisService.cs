@@ -8,8 +8,7 @@ using VirtuelizacijaProjekat.Analytics;
 
 namespace VirtuelizacijaProjekat
 {
-    [ServiceBehavior(InstanceContextMode = InstanceContextMode.Single)] //koristi jedan servis za sve pozive
-
+    [ServiceBehavior(InstanceContextMode = InstanceContextMode.Single)]
     public class EisService : IEisService
     {
         private static int previousIndex = -1;
@@ -20,6 +19,8 @@ namespace VirtuelizacijaProjekat
         private readonly PhaseAngleProcessor phaseAngleProcessor;
         private readonly ReactiveRatioProcessor reactiveRatioProcessor;
 
+        private EisMeta currentMeta;
+
         public EisService(TransferEventPublisher transfer, PhaseAngleProcessor phase, ReactiveRatioProcessor reactive)
         {
             this.transferEventPublisher = transfer;
@@ -27,45 +28,44 @@ namespace VirtuelizacijaProjekat
             this.reactiveRatioProcessor = reactive;
         }
 
-        private EisMeta currentMeta;
-
         public BaterijaResponse StartSession(EisMeta meta)
         {
             if (meta == null)
             {
+                string reason = "Session metadata not provided.";
+
                 throw new FaultException<DataFormatFault>(
                     new DataFormatFault
                     {
-                        Message = "Session metadata not provided.",
+                        Message = reason,
                         RowIndex = -1
-                    });
+                    },
+                    reason);
             }
 
             phaseAngleProcessor.Reset();
             reactiveRatioProcessor.Reset();
 
-            //okidanje eventa
             string transferStartedMessage = ConfigurationManager.AppSettings["TransferStartedMessage"];
             transferEventPublisher.RaiseTransferStarted(transferStartedMessage);
 
             currentMeta = meta;
-
             previousIndex = -1;
 
-            string folderPath = Path.Combine("Data", meta.BatteryId,
-                meta.TestId, meta.SoCPercentage.ToString());
+            string folderPath = Path.Combine("Data", meta.BatteryId, meta.TestId, meta.SoCPercentage.ToString());
 
             Directory.CreateDirectory(folderPath);
+
             string sessionPath = Path.Combine(folderPath, "session.csv");
 
             rejectedPath = Path.Combine(folderPath, "rejects.csv");
+
             if (!File.Exists(rejectedPath))
             {
                 File.WriteAllText(rejectedPath, "Time,Reason\n");
             }
 
             fileWriter?.Dispose();
-
             fileWriter = new EisFileWriter(sessionPath);
 
             return new BaterijaResponse
@@ -73,15 +73,15 @@ namespace VirtuelizacijaProjekat
                 ACK = true,
                 Message = "Session started!",
                 Status = BaterijaStatus.IN_PROGRESS
-            };  
+            };
         }
 
-        //funkcija za rejected uzorke
         private void WriteReject(string reason)
         {
             if (!string.IsNullOrEmpty(rejectedPath))
             {
-                File.AppendAllText(rejectedPath,
+                File.AppendAllText(
+                    rejectedPath,
                     $"{DateTime.Now:yyyy-MM-dd HH:mm:ss},{reason}{Environment.NewLine}");
             }
         }
@@ -89,76 +89,100 @@ namespace VirtuelizacijaProjekat
         public BaterijaResponse PushSample(EisSample sample)
         {
             string warningMessage = ConfigurationManager.AppSettings["WarningMessage"];
-            
-            if(sample == null)
+
+            if (sample == null)
             {
+                string reason = "Sample not forwarded.";
+
                 transferEventPublisher.RaiseWarning(warningMessage, -1);
+
                 throw new FaultException<DataFormatFault>(
                     new DataFormatFault
                     {
-                        Message = "Sample not forwarded.",
+                        Message = reason,
                         RowIndex = -1
-                    });
+                    },
+                    reason);
             }
 
-            if(sample.RowIndex <= previousIndex)
+            if (sample.RowIndex <= previousIndex)
             {
-                WriteReject("Row index must be greater than previous.");
+                string reason = "Row index must be greater than previous.";
+
+                WriteReject(reason);
                 transferEventPublisher.RaiseWarning(warningMessage, sample.RowIndex);
+
                 throw new FaultException<ValidationFault>(
                     new ValidationFault
                     {
-                        Message = "Row index must be greater than previous.",
+                        Message = reason,
                         Field = "RowIndex"
-                    });
+                    },
+                    reason);
             }
 
-            if(sample.FrequencyHz <= 0)
+            if (sample.FrequencyHz <= 0)
             {
-                WriteReject("Frequency must be greater than 0.");
+                string reason = "Frequency must be greater than 0.";
+
+                WriteReject(reason);
                 transferEventPublisher.RaiseWarning(warningMessage, sample.RowIndex);
+
                 throw new FaultException<ValidationFault>(
                     new ValidationFault
                     {
-                        Message = "Frequency must be greater than 0.",
+                        Message = reason,
                         Field = "FrequencyHz"
-                    });
+                    },
+                    reason);
             }
 
-            if(double.IsNaN(sample.R_ohm) || double.IsInfinity(sample.R_ohm))
+            if (double.IsNaN(sample.R_ohm) || double.IsInfinity(sample.R_ohm))
             {
-                WriteReject("R_ohm value must be a real number");
+                string reason = "R_ohm value must be a real number.";
+
+                WriteReject(reason);
                 transferEventPublisher.RaiseWarning(warningMessage, sample.RowIndex);
+
                 throw new FaultException<ValidationFault>(
                     new ValidationFault
                     {
-                        Message = "R_ohm value must be a real number.",
+                        Message = reason,
                         Field = "R_ohm"
-                    });
+                    },
+                    reason);
             }
 
-            if(double.IsNaN(sample.T_degC) || double.IsInfinity(sample.T_degC))
+            if (double.IsNaN(sample.T_degC) || double.IsInfinity(sample.T_degC))
             {
-                WriteReject("T_degC must be a real number.");
+                string reason = "T_degC value must be a real number.";
+
+                WriteReject(reason);
                 transferEventPublisher.RaiseWarning(warningMessage, sample.RowIndex);
+
                 throw new FaultException<ValidationFault>(
                     new ValidationFault
                     {
-                        Message = "T_degC value must be a real number.",
+                        Message = reason,
                         Field = "T_degC"
-                    });
+                    },
+                    reason);
             }
 
             if (fileWriter == null)
             {
-                WriteReject("Session has not started.");
+                string reason = "Session has not been started.";
+
+                WriteReject(reason);
                 transferEventPublisher.RaiseWarning(warningMessage, sample.RowIndex);
+
                 throw new FaultException<ValidationFault>(
                     new ValidationFault
                     {
-                        Message = "Session has not been started.",
+                        Message = reason,
                         Field = "Session"
-                    });
+                    },
+                    reason);
             }
 
             phaseAngleProcessor.ProcessSample(sample, currentMeta);
@@ -167,17 +191,20 @@ namespace VirtuelizacijaProjekat
             {
                 reactiveRatioProcessor.ProcessSample(sample, currentMeta, WriteReject);
             }
-            catch(InvalidOperationException)
+            catch (InvalidOperationException)
             {
-                WriteReject("R_ohm value is zero!");
+                string reason = "R_ohm value is zero!";
+
+                WriteReject(reason);
                 transferEventPublisher.RaiseWarning(warningMessage, sample.RowIndex);
 
                 throw new FaultException<ValidationFault>(
                     new ValidationFault
                     {
-                        Message = "R_ohm value is zero!",
+                        Message = reason,
                         Field = "R_ohm"
-                    });
+                    },
+                    reason);
             }
 
             fileWriter.WriteSample(sample);

@@ -49,7 +49,7 @@ namespace VirtuelizacijaProjekat.Analytics
 
                 string message = ConfigurationManager.AppSettings["ReactiveRatioOutOfBoundsMessage"];
 
-                reactiveRatioEventPublisher.RaiseReactiveRatioOutOfBounds(message, sample.RowIndex, meta.BatteryId, meta.SoCPercentage, sample.FrequencyHz, q, qMean, "Below treshold!");
+                reactiveRatioEventPublisher.RaiseReactiveRatioOutOfBounds(message, sample.RowIndex, meta.BatteryId, meta.SoCPercentage, sample.FrequencyHz, q, qMean, "Below threshold!");
             }
             else if (q > qMax)
             {
@@ -57,7 +57,7 @@ namespace VirtuelizacijaProjekat.Analytics
 
                 string message = ConfigurationManager.AppSettings["ReactiveRatioOutOfBoundsMessage"];
 
-                reactiveRatioEventPublisher.RaiseReactiveRatioOutOfBounds(message, sample.RowIndex, meta.BatteryId, meta.SoCPercentage, sample.FrequencyHz, q, qMean, "Above treshold!");
+                reactiveRatioEventPublisher.RaiseReactiveRatioOutOfBounds(message, sample.RowIndex, meta.BatteryId, meta.SoCPercentage, sample.FrequencyHz, q, qMean, "Above threshold!");
             }
 
             if (q < (1 - qDev) * qMean)

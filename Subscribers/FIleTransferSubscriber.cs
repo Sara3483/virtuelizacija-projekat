@@ -20,7 +20,7 @@ namespace VirtuelizacijaProjekat.Subscribers
 
         public void SampleReceivedHandler(object sender, CustomEventArgs e)
         {
-            WriteToLog("[SAMPLE] " + e.Message + "RowIndex: " + e.RowIndex);
+            WriteToLog("[SAMPLE] " + e.Message + " RowIndex: " + e.RowIndex);
         }
 
         public void TransferCompletedHandler(object sender, CustomEventArgs e)
@@ -30,7 +30,7 @@ namespace VirtuelizacijaProjekat.Subscribers
 
         public void WarningRaisedHandler(object sender, CustomEventArgs e)
         {
-            WriteToLog("[WARNING] " + e.Message + "RowIndex: " + e.RowIndex);
+            WriteToLog("[WARNING] " + e.Message + " RowIndex: " + e.RowIndex);
         }
 
         private void WriteToLog(string text)
